@@ -34,12 +34,21 @@ export default function App() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const [showSignOutConfirm, setShowSignOutConfirm] = useState(false)
   const [visiblePasswords, setVisiblePasswords] = useState({})
   const visible = useMemo(() => products.filter(p => `${p.product_name} ${p.description || ''}`.toLowerCase().includes(query.toLowerCase())), [products, query])
 
   async function loadProducts(activeToken = token) { const data = await request('/api/products', { token: activeToken }); setProducts(data.products || []) }
   useEffect(() => { if (token) loadProducts().catch(() => { localStorage.removeItem('ll_token'); setToken(''); setUser(null) }) }, [])
-  function signOut() {
+  useEffect(() => {
+    if (!showSignOutConfirm) return undefined
+    const closeOnEscape = event => { if (event.key === 'Escape') setShowSignOutConfirm(false) }
+    window.addEventListener('keydown', closeOnEscape)
+    return () => window.removeEventListener('keydown', closeOnEscape)
+  }, [showSignOutConfirm])
+  function signOut() { setShowSignOutConfirm(true) }
+  function confirmSignOut() {
+    setShowSignOutConfirm(false)
     const refreshToken = read('ll_refresh')
     if (token) request('/api/logout', { token, method: 'POST', body: { refresh_token: refreshToken } }).catch(() => {})
     ;['ll_token', 'll_refresh', 'll_user'].forEach(k => localStorage.removeItem(k))
@@ -96,12 +105,14 @@ export default function App() {
   </section></main>
 
   return <div className="app-shell"><aside className="sidebar"><div className="brand"><span className="brand-mark">S</span><span>stockroom</span></div><div className="side-label">WORKSPACE</div><div className="nav-item active"><span>▦</span> Products</div>
-    <div className="sidebar-bottom"><div className="avatar">{(user?.username || 'U').slice(0, 1).toUpperCase()}</div><div className="user-label"><strong>{user?.username || 'User'}</strong><span>{user?.role || 'Account'}</span></div><button className="icon-button" title="Log out" onClick={signOut}>↗</button></div></aside>
+    <div className="sidebar-bottom"><div className="avatar">{(user?.username || 'U').slice(0, 1).toUpperCase()}</div><div className="user-label"><strong>{user?.username || 'User'}</strong><span>{user?.role || 'Account'}</span></div><button className="icon-button" type="button" title="Sign out" aria-label="Sign out" onClick={signOut}>↗</button></div></aside>
     <main className="main"><header className="page-header"><div><p className="eyebrow">INVENTORY</p><h1>Products</h1><p className="muted">Keep track of what you have in stock.</p></div><div className="header-count"><strong>{products.length}</strong><span>total items</span></div></header>
       {(error || notice) && <div className={`alert ${error ? 'error' : 'success'}`}>{error || notice}<button onClick={() => { setError(''); setNotice('') }}>×</button></div>}
       <section className="content-grid"><article className="panel form-panel"><div className="panel-heading"><div><p className="eyebrow">{editing ? 'UPDATE ITEM' : 'NEW ITEM'}</p><h2>{editing ? 'Edit product' : 'Add a product'}</h2></div>{editing && <button className="text-button" onClick={() => { setEditing(null); setForm(emptyForm) }}>Cancel</button>}</div>
         <form className="stack" onSubmit={submitProduct}><label>Product name<input maxLength="100" placeholder="e.g. Ceramic mug" value={form.product_name} onChange={e => setForm({ ...form, product_name: e.target.value })} required /></label><label>Description <span className="optional">Optional</span><textarea rows="3" placeholder="A short description" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></label><div className="two-col"><label>Price <span className="input-prefix">₱</span><input type="number" min="0" step="0.01" placeholder="0.00" value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} required /></label><label>Quantity<input type="number" min="0" step="1" placeholder="0" value={form.quantity} onChange={e => setForm({ ...form, quantity: e.target.value })} required /></label></div><button className="primary" disabled={busy}>{busy ? 'Saving…' : editing ? 'Save changes' : 'Add product'} <span>→</span></button></form></article>
         <article className="panel table-panel"><div className="panel-heading list-heading"><div><p className="eyebrow">CATALOG</p><h2>All products <span className="count-pill">{visible.length}</span></h2></div><div className="search"><span>⌕</span><input aria-label="Search products" placeholder="Search products" value={query} onChange={e => setQuery(e.target.value)} /></div></div>
           <div className="table-scroll"><table><thead><tr><th>PRODUCT</th><th>PRICE</th><th>IN STOCK</th><th></th></tr></thead><tbody>{visible.map(p => <tr key={p.id}><td><div className="product-title">{p.product_name}</div><div className="product-description">{p.description || 'No description'}</div></td><td className="price">₱{Number(p.price || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</td><td><span className={`stock ${Number(p.quantity) === 0 ? 'out' : Number(p.quantity) < 5 ? 'low' : ''}`}><i />{p.quantity} units</span></td><td><div className="row-actions"><button onClick={() => editProduct(p)}>Edit</button><button className="delete" onClick={() => deleteProduct(p)}>Delete</button></div></td></tr>)}{!visible.length && <tr><td colSpan="4"><div className="empty"><span>▦</span><strong>{query ? 'No matching products' : 'Your catalog is empty'}</strong><p>{query ? 'Try a different search.' : 'Add your first product using the form.'}</p></div></td></tr>}</tbody></table></div></article></section><footer>Stockroom <span>•</span> Powered by LavaLust API</footer>
-    </main></div>
+    </main>
+    {showSignOutConfirm && <div className="confirm-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) setShowSignOutConfirm(false) }}><section className="confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="signout-title" aria-describedby="signout-description"><div className="confirm-mark" aria-hidden="true">↗</div><p className="eyebrow">END SESSION</p><h2 id="signout-title">Sign out?</h2><p className="confirm-description" id="signout-description">Are you sure you want to sign out of your account?</p><div className="confirm-actions"><button className="cancel-signout" type="button" autoFocus onClick={() => setShowSignOutConfirm(false)}>Stay signed in</button><button className="confirm-signout" type="button" onClick={confirmSignOut}>Yes, sign out</button></div></section></div>}
+  </div>
 }
