@@ -8,6 +8,6 @@ This React/Vite client uses the LavaLust API for authentication and product data
 2. Install dependencies with `npm install`.
 3. Start the client with `npm run dev`.
 
-For deployment, set `VITE_API_URL` to the deployed LavaLust API base URL and build with `npm run build`. Publish the generated `dist` directory as a static site. Set `allow_origin` in `app/config/api.php` to the exact frontend origin before production deployment.
+For deployment, set `VITE_API_URL` to the deployed LavaLust API base URL and build with `npm run build`. Publish the generated `dist` directory as a static site. In the API Render service, set `CORS_ALLOWED_ORIGIN` to this static site's exact origin, with no trailing slash. For the current services, use `https://angelo-bagot-react-api.onrender.com` for `CORS_ALLOWED_ORIGIN` and `https://angelo-bagot-migration-api.onrender.com` for `VITE_API_URL`.
 
 Create your own account from the sign-in screen. Passwords are hashed by the API before they are stored.
